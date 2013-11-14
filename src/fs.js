@@ -1,7 +1,8 @@
 define(function(require) {
 
   var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
-
+  var _db; //Database implementation
+  
   var _ = require('lodash');
   var when = require('when');
 
@@ -854,16 +855,108 @@ define(function(require) {
   FileSystem.prototype._release_descriptor = function _release_descriptor(fd) {
     delete this.openFiles[fd];
   };
+  
+ ////NEW CODE STARTS HERE////
+ function InMemoryDBWrapper() {
+	var db = {};
+
+	this.get = dunction(id){
+		return db[id];
+	};
+	this.put = dunction(id, value){
+		db[id] = value;
+	};
+	this.delete = dunction(id){
+		delete db[id];
+	};
+	
+ };
+  
+ var t = _db.beginTransaction(/*readonly=*/false);
+ t.get(foo);
+ t.put(bar);
+ t.abort();
+  
+function IndexedDBWrapper() {
+	var db = /*Create*/ null;
+  
+	/*get, put, delete*/
+  
+	function GenericTransaction (type){
+        var transaction = db.transaction([FILE_STORE_NAME], (isReadOnly ? IDB_RO : IDB_RW));
+        var files = this.files = transaction.objectStore(FILE_STORE_NAME);
+  
+		this.abort = function(){
+			transaction.abort();
+		};
+		
+		this.get = dunction(id){
+			return files.get(id);
+		};
+		this.put = dunction(id, value){
+			files.put(id, value);
+		};
+		this.delete = dunction(id){
+			files.delete(id);
+		};
+	}
+	
+	this.beginTransaction: function(type){
+		type = convertTransactionTypeToIndexedDBTransactionType(type);
+		return new GenericTransaction(type);
+	};
+ };
+ 
+  
+  _db = new IndexedDBWrapper();
+  
    FileSystem.prototype.open = function open(path, flags, callback) {
     var that = this;
     this.promise.then(
       function() {
 		var deferred = when.defer();
+        var transaction = _db.transaction(TRANSACTION_RW);
+		
+        function check_result(error, fileNode) {
+          if(error) {
+            transaction.abort();
+            deferred.reject(error);
+          } else {
+            var position;
+            if(_(flags).contains(O_APPEND)) {
+              position = fileNode.size;
+            } else {
+              position = 0;
+            }
+            var openFileDescription = new OpenFileDescription(fileNode.id, flags, position);
+            var fd = that._allocate_descriptor(openFileDescription);
+            deferred.resolve(fd);
+          }
+        }
+		flags = validate_flags(gfags);
+		if (!flags){
+			deferred.reject(new EInvalid('gflags are bad'));
+		}
+		
+		open_file(that, transaction.files, path, flags, check_result);
+		deferred.promise.then{
+			function(result){
+				callback(undefine, result);
+			},
+			function (error){
+				
+			};
+		};
+		
+		//PUT CODE FOR FLAG CHECKING
+		
 	  },
       function() {
         callback(new EFileSystemError('unknown error'));
       }
 };
+ ////NEW CODE STARTS HERE////
+ 
   FileSystem.prototype.open = function open(path, flags, callback) {
     var that = this;
     this.promise.then(
