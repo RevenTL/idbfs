@@ -854,6 +854,16 @@ define(function(require) {
   FileSystem.prototype._release_descriptor = function _release_descriptor(fd) {
     delete this.openFiles[fd];
   };
+   FileSystem.prototype.open = function open(path, flags, callback) {
+    var that = this;
+    this.promise.then(
+      function() {
+		var deferred = when.defer();
+	  },
+      function() {
+        callback(new EFileSystemError('unknown error'));
+      }
+};
   FileSystem.prototype.open = function open(path, flags, callback) {
     var that = this;
     this.promise.then(
